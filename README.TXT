@@ -1,5 +1,7 @@
 See http://ledpixelart.com/developers.html for instructions to write your own app for PIXEL.
 
+This library has also been merged with the OTG branch
+
 _________________________________________________________________________
 FIRMWARE INFO - Most developers will not need to touch the firmware and you can ignore this section. You only need to worry about the firmware if you're making a
 fundamental change to how PIXEL works. This is a fork of the RGB-LED branch of the IOIO repository on Github https://github.com/ytai/ioio/wiki. The 
