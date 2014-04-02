@@ -23,5 +23,12 @@
     android:layout_height="wrap_content"
     android:text="No speed" 
     android:textColor="#0099CC"/>
-
+  
+<TextView
+    android:id="@+id/pixel_display"
+	android:layout_width="wrap_content"
+	android:layout_height="wrap_content"
+	android:layout_alignParentTop="true"
+	android:text="Not Found" 
+	android:textColor="#0099CC"/>
 </LinearLayout>

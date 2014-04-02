@@ -2,6 +2,7 @@ int drawable apple 0x7f020000
 int drawable icon 0x7f020001
 int drawable openxc_notification_icon_small_white 0x7f020002
 int id brake_status 0x7f080001
+int id pixel_display 0x7f080003
 int id title 0x7f080000
 int id vehicle_speed 0x7f080002
 int layout main 0x7f030000

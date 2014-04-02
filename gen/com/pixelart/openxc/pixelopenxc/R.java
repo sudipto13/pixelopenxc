@@ -17,6 +17,7 @@ public final class R {
     }
     public static final class id {
         public static final int brake_status=0x7f080001;
+        public static final int pixel_display=0x7f080003;
         public static final int title=0x7f080000;
         public static final int vehicle_speed=0x7f080002;
     }

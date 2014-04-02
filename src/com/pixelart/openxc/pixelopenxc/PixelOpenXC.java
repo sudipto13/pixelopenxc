@@ -1,5 +1,7 @@
 package com.pixelart.openxc.pixelopenxc;
 
+//import ioio.lib.api.AnalogInput;
+//import ioio.lib.api.DigitalInput;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
@@ -7,7 +9,6 @@ import ioio.lib.util.android.IOIOActivity;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Timer;
 
@@ -17,50 +18,41 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
-import android.content.res.Resources;
+//import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
-//import android.view.WindowManager;
+import android.view.Menu;
+import android.view.MenuInflater;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.view.MenuItem;
 
-//import com.ledpixelart.pixelopenxc.MainActivity.ConnectTimer;
 import com.openxc.VehicleManager;
 import com.openxc.measurements.BrakePedalStatus;
 import com.openxc.measurements.Measurement;
 import com.openxc.measurements.UnrecognizedMeasurementTypeException;
 import com.openxc.measurements.VehicleSpeed;
 import com.openxc.remote.VehicleServiceException;
-import android.content.pm.PackageManager.NameNotFoundException;
+//import com.pixelart.openxc.pixelopenxc.PixelOpenXC.ConnectTimer;
+//import android.view.WindowManager;
+//import com.ledpixelart.pixelopenxc.MainActivity.ConnectTimer;
 //import com.openxc.measurements.VehicleSpeed;
 
-public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
+public class PixelOpenXC extends IOIOActivity   {
 
    	private ioio.lib.api.RgbLedMatrix.Matrix KIND;  //have to do it this way because there is a matrix library conflict
-	private android.graphics.Matrix matrix2;
-  	private short[] frame_ = new short[512];
+	private short[] frame_ = new short[512];
   	public static final Bitmap.Config FAST_BITMAP_CONFIG = Bitmap.Config.RGB_565;
   	private byte[] BitmapBytes;
-  	private Bitmap canvasBitmap;
-  	private Bitmap originalImage;
-  	private int width_original;
-  	private int height_original; 	  
-  	private float scaleWidth; 
-  	private float scaleHeight; 	  	
-  	private Bitmap resizedBitmap;  	
-	private int resizedFlag = 0;
 	
 	private VehicleManager mVehicleManager;
 	private TextView mVehicleBrakeView;
 	private TextView mVehicleSpeedView;
+	private TextView pixelStatusView;
 	private int brakePriority = 3;
     private int currentPriority = 0;
     private int pixelFound = 0; 
@@ -70,134 +62,51 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
     private double speedDelta;
     private InputStream BitmapInputStream;
     private ioio.lib.api.RgbLedMatrix matrix_;
+    private boolean debug_;
     
     private ConnectTimer connectTimer; 
-    private int matrix_model;
-    private Resources resources = null;
-	private SharedPreferences prefs;
-	private String app_ver;
+//    private Resources resources = null;
+//	private SharedPreferences prefs;
+//	private String app_ver;
 	protected static final String tag = "openxc";
+	private static final String LOG_TAG = "pixelopenxc";	
+	   
     
 	
     @Override
-    public void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 //        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); //force only portrait mode
         setContentView(R.layout.main);
-//	   	KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //only change this if using a different LED matrix than the Pixel Frame
-//		frame_ = new short [KIND.width * KIND.height]; //byte array which will be sent to the LED frame
-//		BitmapBytes = new byte[KIND.width * KIND.height *2]; //512 * 2 = 1024 or 1024 * 2 = 2048		 
-//		originalImage = BitmapFactory.decodeResource(getResources(), R.drawable.icon); //gets the bitmap from your drawables folder
-//		WriteImagetoMatrix();
-		
-//		BitmapInputStream = getResources().openRawResource(R.raw.blank); //load a blank image to clear it
-//		loadRGB565();
 
         mVehicleBrakeView = (TextView) findViewById(R.id.brake_status);
 		mVehicleSpeedView = (TextView) findViewById(R.id.vehicle_speed);
+		pixelStatusView = (TextView) findViewById(R.id.pixel_display);
 		
 		Intent intent = new Intent(this, VehicleManager.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         
         connectTimer = new ConnectTimer(30000,5000); //pop up a message if PIXEL is not found within 30 seconds
  		connectTimer.start(); 
-//		try {
-//			clearMatrixImage();
-//		} catch (ConnectionLostException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
- 		resources = this.getResources();
- 		setPreferences();
  		
- 		this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
+ 		setPreferences(); 		
     }
     
     private void setPreferences()
     {
      SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this); 
-     matrix_model = Integer.valueOf(prefs.getString(   
-    	        resources.getString(R.string.selected_matrix),
-    	        resources.getString(R.string.matrix_default_value))); 
+     debug_ = prefs.getBoolean("pref_debugMode", false);
      
-//     switch (matrix_model) {  //the user can use other LED displays other than PIXEL's by choosing from preferences
-//     case 0:
-//    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x16;
-//    	 BitmapInputStream = getResources().openRawResource(R.raw.openxcgrey);
-//    	 break;
-//     case 1:
-//    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.ADAFRUIT_32x16;
-//    	 BitmapInputStream = getResources().openRawResource(R.raw.openxcgrey);
-//    	 break;
-//     case 2:
-//    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32_NEW; //v1 , this matrix has 4 IDC connectors
-//    	 BitmapInputStream = getResources().openRawResource(R.raw.openxcgrey);
-//    	 break;
-//     case 3:
-//    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //v2
-//    	 BitmapInputStream = getResources().openRawResource(R.raw.openxcgrey);
-//    	 break;
-//     default:	    		 
-    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //v2 as the default, it has 2 IDC connectors
-    	 BitmapInputStream = getResources().openRawResource(R.raw.openxcgrey);
-//     }
-     frame_ = new short [KIND.width * KIND.height];
+   	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //v2 as the default, it has 2 IDC connectors
+   	 BitmapInputStream = getResources().openRawResource(R.raw.openxcgrey);
+
+   	 frame_ = new short [KIND.width * KIND.height];
 	 BitmapBytes = new byte[KIND.width * KIND.height *2]; //512 * 2 = 1024 or 1024 * 2 = 2048
 	 
 	 loadRGB565(); //this function loads a raw RGB565 image to the matrix
     }
-    
-//    private void WriteImagetoMatrix() {  //here we'll take a PNG, BMP, or whatever and convert it to RGB565 via a canvas, also we'll re-size the image if necessary
-//    	
-// 		 //let's test if the image is 32x32 resolution
-//		 width_original = originalImage.getWidth();
-//		 height_original = originalImage.getHeight();
-//		 
-//		 //if not, no problem, we will re-size it on the fly here		 
-//		 if (width_original != KIND.width || height_original != KIND.height) {
-//			 resizedFlag = 1;
-//			 scaleWidth = ((float) KIND.width) / width_original;
-//   		 	 scaleHeight = ((float) KIND.height) / height_original;
-//	   		 // create matrix for the manipulation
-//	   		 matrix2 = new Matrix();
-//	   		 // resize the bit map
-//	   		 matrix2.postScale(scaleWidth, scaleHeight);
-//	   		 resizedBitmap = Bitmap.createBitmap(originalImage, 0, 0, width_original, height_original, matrix2, true);
-//	   		 canvasBitmap = Bitmap.createBitmap(KIND.width, KIND.height, Config.RGB_565); 
-//	   		 Canvas canvas = new Canvas(canvasBitmap);
-//	   		 canvas.drawRGB(0,0,0); //a black background
-//	   	   	 canvas.drawBitmap(resizedBitmap, 0, 0, null);
-//	   		 ByteBuffer buffer = ByteBuffer.allocate(KIND.width * KIND.height *2); //Create a new buffer
-//	   		 canvasBitmap.copyPixelsToBuffer(buffer); //copy the bitmap 565 to the buffer		
-//	   		 BitmapBytes = buffer.array(); //copy the buffer into the type array
-//		 }
-//		 else {  //if we went here, then the image was already the correct dimension so no need to re-size
-//			 resizedFlag = 0;
-//			 canvasBitmap = Bitmap.createBitmap(KIND.width, KIND.height, Config.RGB_565); 
-//	   		 Canvas canvas = new Canvas(canvasBitmap);
-//	   	   	 canvas.drawBitmap(originalImage, 0, 0, null);
-//	   		 ByteBuffer buffer = ByteBuffer.allocate(KIND.width * KIND.height *2); //Create a new buffer
-//	   		 canvasBitmap.copyPixelsToBuffer(buffer); //copy the bitmap 565 to the buffer		
-//	   		 BitmapBytes = buffer.array(); //copy the buffer into the type array
-//		 }	       
-//		loadImage(); 
-//}
 
-    public void loadImage() {
- 		int y = 0;
- 		for (int i = 0; i < frame_.length; i++) {
- 			frame_[i] = (short) (((short) BitmapBytes[y] & 0xFF) | (((short) BitmapBytes[y + 1] & 0xFF) << 8));
- 			y = y + 2;
- 		}
- 		//we're done with the images so let's recycle them to save memory
-	    canvasBitmap.recycle();
-	    originalImage.recycle(); 
-	    
-	    if ( resizedFlag == 1) {
-	    	resizedBitmap.recycle(); //only there if we had to resize an image
-	    }
- 	}
-  	
+    
     private void loadRGB565() {
 		   
 		try {
@@ -209,7 +118,6 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
   		} catch (IOException e) {
   			e.printStackTrace();
   		}
-
   		int y = 0;
   		for (int i = 0; i < frame_.length; i++) {
   			frame_[i] = (short) (((short) BitmapBytes[y] & 0xFF) | (((short) BitmapBytes[y + 1] & 0xFF) << 8));
@@ -219,12 +127,23 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
   }
 	
     ///********** IOIO Part of the Code ************************
-    class IOIOThread extends BaseIOIOLooper { 
-  		private ioio.lib.api.RgbLedMatrix matrix_;
+    class IOIOThread extends BaseIOIOLooper {
 
   		@Override
   		protected void setup() throws ConnectionLostException {
   			matrix_ = ioio_.openRgbLedMatrix(KIND);
+  			
+  			connectTimer.cancel(); //we can stop this since it was found
+  			
+  			matrix_.frame(frame_);  //write select pic to the matrix
+  			
+  			if (debug_ == true) {  			
+ 	  			showToast("Bluetooth Connected");
+  			}
+  			
+  			pixelFound = 1; //if we went here, then we are connected over bluetooth or USB
+  			
+  			updatePIXELStatus("Connected");
   		}
 
   		@Override
@@ -233,39 +152,75 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
   			matrix_.frame(frame_); //writes whatever is in the frame_ byte array to the Pixel RGB Frame. 
   								   //since this is a loop running constantly, you can simply load other things into frame_ and then this part will take care of updating it to the LED matrix
   			}	
-  		}
+  		
+  		public void disconnected() {
+			Log.i(LOG_TAG, "IOIO disconnected");
+			
+			if (debug_ == true) {  			
+	  			showToast("Bluetooth Disconnected");
+ 			}
+			
+			updatePIXELStatus("Connection Lost");
+		}
+
+		@Override
+		public void incompatible() {  //if the wrong firmware is there
+			//AlertDialog.Builder alert=new AlertDialog.Builder(context); //causing a crash
+			//alert.setTitle(getResources().getString(R.string.notFoundString)).setIcon(R.drawable.icon).setMessage(getResources().getString(R.string.bluetoothPairingString)).setNeutralButton(getResources().getString(R.string.OKText), null).show();	
+			showToast("Incompatbile firmware!");
+			showToast("This app won't work until you flash the IOIO with the correct firmware!");
+			showToast("You can use the IOIO Manager Android app to flash the correct firmware");
+			Log.e(LOG_TAG, "Incompatbile firmware!");
+		}
+ 	}    
+    
+//    class IOIOThread extends BaseIOIOLooper { 
+//  		private ioio.lib.api.RgbLedMatrix matrix_;
+//
+//  		@Override
+//  		protected void setup() throws ConnectionLostException {
+//  			matrix_ = ioio_.openRgbLedMatrix(KIND);
+//  		}
+//
+//  		@Override
+//  		public void loop() throws ConnectionLostException {
+//  		
+//  			matrix_.frame(frame_); //writes whatever is in the frame_ byte array to the Pixel RGB Frame. 
+//  								   //since this is a loop running constantly, you can simply load other things into frame_ and then this part will take care of updating it to the LED matrix
+//  			}	
+//  		}
 
   	@Override
   	protected IOIOLooper createIOIOLooper() {
   		return new IOIOThread();
   	}
     ////**************************************************************
+  	
+    private void showToast(final String msg) {
+ 		runOnUiThread(new Runnable() {
+ 			@Override
+ 			public void run() {
+ 				Toast toast = Toast.makeText(PixelOpenXC.this, msg, Toast.LENGTH_LONG);
+                toast.show();
+ 			}
+ 		});
+ 	}  
+    
+	private void updatePIXELStatus(final String str) {
+		runOnUiThread(new Runnable() {
+			public void run() {
+				pixelStatusView.setText(str);
+			}
+		});
+	}  	
+ 	
+  	////*********************************************
   	protected void onDestroy() {
 	     super.onDestroy();
-	       connectTimer.cancel();  //if user closes the program, need to kill this timer or we'll get a crash
-	     //  _pedalTimer.cancel();
-	     //  _birdTimer.cancel();
-	     //  _thxTimer.cancel();
-	     //  _rapidBrakeTimer.cancel();
+	       connectTimer.cancel();  
+	       _pedalTimer.cancel();
 	   }
-//  	private void UpdateRapidBrake()  {
-//	       i++;
-//				
-//			if (i == _rapidBrakeDisplayTime) {  //how long to display the rapidBrake image
-//					_rapidBrakeTimer.cancel();
-//		       		i = 0;
-//		       		rapidBrakeTimerRunning = 0;
-//					currentPriority = 0;
-//					try {
-//						clearMatrixImage(); //don't forget to clear as if we're at 0 speed and the brake was on, this image will stay there
-//					} catch (ConnectionLostException e) {
-//						// TODO Auto-generated catch block
-//						e.printStackTrace();
-//					}
-//			}
-//	       	
-//	    }
-//  	
+  	
   	public class ConnectTimer extends CountDownTimer
 	{
 
@@ -273,15 +228,12 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
 			{
 				super(startTime, interval);
 			}
-
 		public void onFinish()
 			{
 				if (pixelFound == 0) {
 					showNotFound (); 					
 				}
-				
 			}
-
 		public void onTick(long millisUntilFinished)				{
 			//not used
 		}
@@ -312,8 +264,8 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
 		   	 loadRGB565();    	
 		   	 matrix_.frame(frame_); 
 		   }
-	
-	///*********** Vehicle Service and Binds*****************////
+
+ ///*********** Vehicle Service and Binds*****************////
 	
 	private ServiceConnection mConnection = new ServiceConnection() {
 	    // Called when the connection with the service is established
@@ -374,15 +326,8 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
 	            	}
 	            	else {
 	            		brakesText = "Off";
-	            	}
-	            	
+	            	}	            	
 	            	mVehicleBrakeView.setText(brakesText);
-	            	
-	            	
-	            	//mVehicleBrakeView.setText(
-	            	// 	"Brake: " + _brakeStatus.getValue().booleanValue());
-	            	
-	            	//Log.w("openxc", "current priority " + currentPriority); 
 	            	
 	            	if (brakePriority >= currentPriority && pixelFound == 1) { 
 	            		
@@ -391,8 +336,7 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
 	            			_pedalTimer.cancel();
 	            			pedalTimerRunning = 0;
 	            			Log.w("openxc", "brake killed the pedal timer"); 
-	            		}
-	            		
+	            		}	            		
 	            		//pedalTimer.cancel(); //stop the timer
 	            		//pedalTimerRunning = 0;
 	            		
@@ -417,9 +361,7 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
 									// TODO Auto-generated catch block
 									e.printStackTrace();
 								}
-	            			}
-			            		
-	            			
+	            			}			            	            			
 	            		}
 	            		else {
 	            			 
@@ -432,8 +374,7 @@ public class PixelOpenXC<connectTimer, ConnectTimer> extends IOIOActivity   {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-	            		}
-	            		 
+	            		}	            		 
 //	            		 Log.w("openxc", breakValue); 
 	            		
 	            	}
